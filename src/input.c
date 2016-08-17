@@ -64,6 +64,18 @@ void _glfwInputKey(_GLFWwindow* window, int key, int scancode, int action, int m
         window->callbacks.key((GLFWwindow*) window, key, scancode, action, mods);
 }
 
+#if defined(GLFW_SUPPORT_WINTAB)
+void _glfwInputPen(_GLFWwindow* window,
+                   uint32_t pen, int32_t x, int32_t y,
+                   double pressure, double altitude,
+                   double azimuth, double twist)
+{
+    if (window->callbacks.pen) {
+        window->callbacks.pen((GLFWwindow*)window, pen, x, y, pressure, altitude, azimuth, twist);
+    }
+}
+#endif
+
 void _glfwInputChar(_GLFWwindow* window, unsigned int codepoint, int mods, GLFWbool plain)
 {
     if (codepoint < 32 || (codepoint > 126 && codepoint < 160))
@@ -465,6 +477,17 @@ GLFWAPI GLFWkeyfun glfwSetKeyCallback(GLFWwindow* handle, GLFWkeyfun cbfun)
     _GLFW_SWAP_POINTERS(window->callbacks.key, cbfun);
     return cbfun;
 }
+
+#if defined(GLFW_SUPPORT_WINTAB)
+GLFWAPI GLFWpenfun glfwSetPenCallback(GLFWwindow* handle, GLFWpenfun cbfun) {
+  _GLFWwindow* window = (_GLFWwindow*)handle;
+  assert(window != NULL);
+
+  _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+  _GLFW_SWAP_POINTERS(window->callbacks.pen, cbfun);
+  return cbfun;
+}
+#endif
 
 GLFWAPI GLFWcharfun glfwSetCharCallback(GLFWwindow* handle, GLFWcharfun cbfun)
 {

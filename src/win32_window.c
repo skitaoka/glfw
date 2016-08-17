@@ -34,6 +34,45 @@
 #include <windowsx.h>
 #include <shellapi.h>
 
+#if defined(GLFW_SUPPORT_WINTAB)
+#include "wintab.h"
+
+#define PACKETDATA (PK_X | PK_Y | PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR)
+#define PACKETMODE 0
+
+#include "pktdef.h"
+#include "msgpack.h"
+
+#include <windows.h>
+
+static HCTX TabletInit(HWND hWnd)
+{
+    // get default region
+    LOGCONTEXT lcMine; // The context of the tablet
+    gpWTInfoA(WTI_DEFCONTEXT, 0, &lcMine);
+
+    // modify the digitizing region
+    wsprintf(lcMine.lcName, L"GLFW");
+    lcMine.lcOptions |= CXO_MESSAGES;
+    lcMine.lcPktData = PACKETDATA;
+    lcMine.lcPktMode = PACKETMODE;
+    lcMine.lcMoveMask = PACKETDATA;
+    lcMine.lcBtnUpMask = lcMine.lcBtnDnMask;
+
+     // Set the entire tablet as active
+     AXIS TabletX, TabletY; // The maximum tablet size
+     gpWTInfoA(WTI_DEVICES, DVC_X, &TabletX);
+     gpWTInfoA(WTI_DEVICES, DVC_Y, &TabletY);
+     lcMine.lcInOrgX = 0;
+     lcMine.lcInOrgY = 0;
+     lcMine.lcInExtX = TabletX.axMax;
+     lcMine.lcInExtY = TabletY.axMax;
+
+     // open the region
+     return gpWTOpenA(hWnd, &lcMine, TRUE);
+}
+#endif
+
 #define _GLFW_KEY_INVALID -2
 
 // Returns the window style for the specified window
@@ -425,6 +464,12 @@ static void releaseMonitor(_GLFWwindow* window)
 static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
                                    WPARAM wParam, LPARAM lParam)
 {
+#if defined(GLFW_SUPPORT_WINTAB)
+    static HCTX hTab = NULL;
+    static double pressMin = 0;
+    static double pressRangeInv = 1.0 / 1024;
+#endif
+
     _GLFWwindow* window = GetPropW(hWnd, L"GLFW");
     if (!window)
     {
@@ -432,6 +477,52 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
 
         switch (uMsg)
         {
+#if defined(GLFW_SUPPORT_WINTAB)
+            case WM_CREATE:
+            {
+                hTab = TabletInit(hWnd);
+                if (!hTab) {
+                    _glfwInputError(GLFW_PLATFORM_ERROR,
+                                    "Win32: Could not initialize the tablet");
+                }
+
+                AXIS pressAxis;
+                gWTInfo(WTI_DEVICES, DVC_NPRESSURE, &pressAxis);
+                pressMin = pressAxis.axMin;
+                pressRangeInv = 1.0 / (pressAxis.axMax - pressAxis.axMin);
+                break;
+            }
+
+            case WM_ACTIVATE:
+            {
+                if (hTab && GET_WM_ACTIVATE_STATE(wParam, lParam)) {
+                    gpWTOverlap(hTab, TRUE);
+                }
+                break;
+            }
+
+            case WT_PACKET: // A packet is waiting from WINTAB
+            {
+              PACKET pkt;
+              if (gpWTPacket((HCTX)lParam, wParam, &pkt)) {
+                _glfwInputPen(window, pkt.pkCursor, pkt.pkX, pkt.pkY,
+                              pressRangeInv * (pkt.pkNormalPressure - pressMin),
+                              pkt.pkOrientation.orAltitude,
+                              pkt.pkOrientation.orAzimuth,
+                              pkt.pkOrientation.orTwist);
+              }
+              break;
+            }
+
+            case WM_DESTROY:
+            {
+                if (hTab) {
+                  gpWTClose(hTab);
+                }
+                
+                break;
+            }
+#endif
             case WM_DEVICECHANGE:
             {
                 if (wParam == DBT_DEVNODES_CHANGED)

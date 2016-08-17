@@ -387,6 +387,9 @@ struct _GLFWwindow
         GLFWcharfun             character;
         GLFWcharmodsfun         charmods;
         GLFWdropfun             drop;
+#if defined(GLFW_SUPPORT_WINTAB)
+        GLFWpenfun              pen;
+#endif
     } callbacks;
 
     // This is defined in the window API's platform.h
@@ -869,6 +872,9 @@ void _glfwInputWindowMonitorChange(_GLFWwindow* window, _GLFWmonitor* monitor);
  *  @ingroup event
  */
 void _glfwInputKey(_GLFWwindow* window, int key, int scancode, int action, int mods);
+
+void _glfwInputPen(_GLFWwindow* window, uint32_t key, int32_t x, int32_t y,
+                   double pressure, double altitude, double azimuth, double twist);
 
 /*! @brief Notifies shared code of a Unicode character input event.
  *  @param[in] window The window that received the event.

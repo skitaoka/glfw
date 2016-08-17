@@ -29,6 +29,7 @@ option(GLFW_VULKAN_STATIC "Use the Vulkan loader statically linked into applicat
 option(GLFW_DOCUMENT_INTERNALS "Include internals in documentation" OFF)
 
 if (WIN32)
+    option(GLFW_SUPPORT_WINTAB "Enable wintab callback on Windows" OFF)
     option(GLFW_USE_HYBRID_HPG "Force use of high-performance GPU on hybrid systems" OFF)
 endif()
 
@@ -60,6 +61,13 @@ endif()
 
 if (GLFW_VULKAN_STATIC)
     set(_GLFW_VULKAN_STATIC 1)
+endif()
+
+if (GLFW_SUPPORT_WINTAB)
+    set(_GLFW_SUPPORT_WINTAB 1)
+    set(glfw_WINTAB_DIRS "${CMAKE_SOURCE_DIR}/deps/wintab")
+    set(glfw_WINTAB_INCLUDE_DIRS "${glfw_WINTAB_DIRS}/include")
+    set(glfw_WINTAB_SOURCES "${glfw_WINTAB_DIRS}/src/utils.c")
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${GLFW_SOURCE_DIR}/CMake/modules")

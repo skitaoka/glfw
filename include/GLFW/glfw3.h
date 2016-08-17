@@ -1033,6 +1033,11 @@ typedef void (* GLFWscrollfun)(GLFWwindow*,double,double);
  */
 typedef void (* GLFWkeyfun)(GLFWwindow*,int,int,int,int);
 
+#if defined(GLFW_SUPPORT_WINTAB)
+typedef void (* GLFWpenfun)(GLFWwindow*, uint32_t, int32_t, int32_t,
+                            double, double, double, double);
+#endif
+
 /*! @brief The function signature for Unicode character callbacks.
  *
  *  This is the function signature for Unicode character callback functions.
@@ -3301,6 +3306,10 @@ GLFWAPI void glfwSetCursor(GLFWwindow* window, GLFWcursor* cursor);
  *  @ingroup input
  */
 GLFWAPI GLFWkeyfun glfwSetKeyCallback(GLFWwindow* window, GLFWkeyfun cbfun);
+
+#if defined(GLFW_SUPPORT_WINTAB)
+GLFWAPI GLFWkeyfun glfwSetPenCallback(GLFWwindow* window, GLFWpenfun cbfun);
+#endif
 
 /*! @brief Sets the Unicode character callback.
  *

@@ -1,0 +1,3 @@
+[submodule "deps/wintab"]
+	path = deps/wintab
+	url = git@github.com:skitaoka/wintab.git

@@ -52,7 +52,7 @@ if (APPLE)
     set_source_files_properties(${glfw_SOURCES} PROPERTIES LANGUAGE C)
 endif()
 
-add_library(glfw ${glfw_SOURCES} ${glfw_HEADERS})
+add_library(glfw ${glfw_SOURCES} ${glfw_HEADERS} ${glfw_WINTAB_SOURCES})
 set_target_properties(glfw PROPERTIES
                       OUTPUT_NAME ${GLFW_LIB_NAME}
                       VERSION ${GLFW_VERSION}
@@ -67,7 +67,8 @@ target_include_directories(glfw PUBLIC
 target_include_directories(glfw PRIVATE
                            "${GLFW_SOURCE_DIR}/src"
                            "${GLFW_BINARY_DIR}/src"
-                           ${glfw_INCLUDE_DIRS})
+                           ${glfw_INCLUDE_DIRS}
+                           ${glfw_WINTAB_INCLUDE_DIRS})
 
 # HACK: When building on MinGW, WINVER and UNICODE need to be defined before
 # the inclusion of stddef.h (by glfw3.h), which is itself included before
@@ -108,6 +109,10 @@ if (BUILD_SHARED_LIBS)
     target_link_libraries(glfw PRIVATE ${glfw_LIBRARIES})
 else()
     target_link_libraries(glfw INTERFACE ${glfw_LIBRARIES})
+endif()
+
+if (_GLFW_SUPPORT_WINTAB)
+    add_definitions(-DGLFW_SUPPORT_WINTAB)
 endif()
 
 if (MSVC)

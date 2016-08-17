@@ -33,6 +33,10 @@
 #include <initguid.h>
 DEFINE_GUID(GUID_DEVINTERFACE_HID,0x4d1e55b2,0xf16f,0x11cf,0x88,0xcb,0x00,0x11,0x11,0x00,0x00,0x30);
 
+#if defined(GLFW_SUPPORT_WINTAB)
+#include "utils.h"
+#endif
+
 #if defined(_GLFW_USE_HYBRID_HPG) || defined(_GLFW_USE_OPTIMUS_HPG)
 
 // Applications exporting this symbol with this value will be automatically
@@ -136,6 +140,12 @@ static GLFWbool loadLibraries(void)
             GetProcAddress(_glfw.win32.shcore.instance, "SetProcessDpiAwareness");
     }
 
+#if defined(GLFW_SUPPORT_WINTAB)
+    if (!LoadWintab()) {
+        return GLFW_FALSE;
+    }
+#endif
+
     return GLFW_TRUE;
 }
 
@@ -160,6 +170,10 @@ static void freeLibraries(void)
 
     if (_glfw.win32.shcore.instance)
         FreeLibrary(_glfw.win32.shcore.instance);
+
+#if defined(GLFW_SUPPORT_WINTAB)
+    UnloadWintab();
+#endif
 }
 
 // Create key code translation tables
