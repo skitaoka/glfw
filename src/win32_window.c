@@ -37,7 +37,7 @@
 #if defined(GLFW_SUPPORT_WINTAB)
 #include "utils.h"
 
-#define PACKETDATA (PK_X | PK_Y | PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR)
+#define PACKETDATA (PK_X | PK_Y | PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR | PK_TIME)
 #define PACKETMODE 0
 
 #include "pktdef.h"
@@ -490,9 +490,8 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
           x = x * window->win32.hWintabContextDefault.lcSysExtX + window->win32.hWintabContextDefault.lcSysOrgX;
           y = y * window->win32.hWintabContextDefault.lcSysExtY + window->win32.hWintabContextDefault.lcSysOrgY;
 
-          _glfwInputPen(window, pkt.pkCursor,
-                        x - org.x,
-                        y - org.y,
+          _glfwInputPen(window, pkt.pkCursor, pkt.pkTime,
+                        x - org.x, y - org.y,
                         pri * (pkt.pkNormalPressure - pmin),
                         0.1 * pkt.pkOrientation.orAltitude,
                         0.1 * pkt.pkOrientation.orAzimuth,
