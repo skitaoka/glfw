@@ -1034,7 +1034,7 @@ typedef void (* GLFWscrollfun)(GLFWwindow*,double,double);
 typedef void (* GLFWkeyfun)(GLFWwindow*,int,int,int,int);
 
 #if defined(GLFW_SUPPORT_WINTAB)
-typedef void (* GLFWpenfun)(GLFWwindow*, uint32_t, int32_t, int32_t,
+typedef void (* GLFWpenfun)(GLFWwindow*, uint32_t, double, double,
                             double, double, double, double);
 #endif
 

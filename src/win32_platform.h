@@ -76,6 +76,10 @@
  #define strdup _strdup
 #endif
 
+#if defined(GLFW_SUPPORT_WINTAB)
+#include "wintab.h"
+#endif
+
 // HACK: Define macros that some windows.h variants don't
 #ifndef WM_MOUSEHWHEEL
  #define WM_MOUSEHWHEEL 0x020E
@@ -239,6 +243,12 @@ typedef struct _GLFWwindowWin32
     // The last received cursor position, regardless of source
     int                 lastCursorPosX, lastCursorPosY;
 
+#if defined(GLFW_SUPPORT_WINTAB)
+    LOGCONTEXTA         hWintabContextDefault;
+    HCTX                hWintabContext;
+    double              pressMin;
+    double              pressRangeInv;
+#endif
 } _GLFWwindowWin32;
 
 // Win32-specific global data

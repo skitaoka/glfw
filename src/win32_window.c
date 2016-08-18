@@ -35,7 +35,7 @@
 #include <shellapi.h>
 
 #if defined(GLFW_SUPPORT_WINTAB)
-#include "wintab.h"
+#include "utils.h"
 
 #define PACKETDATA (PK_X | PK_Y | PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR)
 #define PACKETMODE 0
@@ -45,31 +45,33 @@
 
 #include <windows.h>
 
-static HCTX TabletInit(HWND hWnd)
+static HCTX TabletInit(HWND hWnd, LOGCONTEXTA* pwintabLogicalContext)
 {
     // get default region
-    LOGCONTEXT lcMine; // The context of the tablet
-    gpWTInfoA(WTI_DEFCONTEXT, 0, &lcMine);
+    gpWTInfoA(WTI_DEFCONTEXT, 0, pwintabLogicalContext);
 
     // modify the digitizing region
-    wsprintf(lcMine.lcName, L"GLFW");
-    lcMine.lcOptions |= CXO_MESSAGES;
-    lcMine.lcPktData = PACKETDATA;
-    lcMine.lcPktMode = PACKETMODE;
-    lcMine.lcMoveMask = PACKETDATA;
-    lcMine.lcBtnUpMask = lcMine.lcBtnDnMask;
+    sprintf(pwintabLogicalContext->lcName, "GLFW");
+    pwintabLogicalContext->lcOptions |= CXO_MESSAGES | CXO_SYSTEM;
+    pwintabLogicalContext->lcPktData = PACKETDATA;
+    pwintabLogicalContext->lcPktMode = PACKETMODE;
+    pwintabLogicalContext->lcMoveMask = PACKETDATA;
+    pwintabLogicalContext->lcBtnUpMask = pwintabLogicalContext->lcBtnDnMask;
 
      // Set the entire tablet as active
-     AXIS TabletX, TabletY; // The maximum tablet size
-     gpWTInfoA(WTI_DEVICES, DVC_X, &TabletX);
-     gpWTInfoA(WTI_DEVICES, DVC_Y, &TabletY);
-     lcMine.lcInOrgX = 0;
-     lcMine.lcInOrgY = 0;
-     lcMine.lcInExtX = TabletX.axMax;
-     lcMine.lcInExtY = TabletY.axMax;
+    AXIS TabletX;
+    gpWTInfoA(WTI_DEVICES, DVC_X, &TabletX);
 
-     // open the region
-     return gpWTOpenA(hWnd, &lcMine, TRUE);
+    AXIS TabletY;
+    gpWTInfoA(WTI_DEVICES, DVC_Y, &TabletY);
+
+    pwintabLogicalContext->lcInOrgX = TabletX.axMin;
+    pwintabLogicalContext->lcInOrgY = TabletX.axMin;
+    pwintabLogicalContext->lcInExtX = TabletX.axMax;
+    pwintabLogicalContext->lcInExtY = TabletY.axMax;
+
+    // open the region
+    return gpWTOpenA(hWnd, pwintabLogicalContext, TRUE);
 }
 #endif
 
@@ -464,65 +466,50 @@ static void releaseMonitor(_GLFWwindow* window)
 static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
                                    WPARAM wParam, LPARAM lParam)
 {
+    _GLFWwindow* window = GetPropW(hWnd, L"GLFW");
+
 #if defined(GLFW_SUPPORT_WINTAB)
-    static HCTX hTab = NULL;
-    static double pressMin = 0;
-    static double pressRangeInv = 1.0 / 1024;
+    switch (uMsg) {
+    case WT_PACKET: // A packet is waiting from WINTAB
+    {
+      PACKET pkt;
+      if (gpWTPacket((HCTX)lParam, (UINT)wParam, &pkt)) {
+        if (window) {
+          POINT org = {0, 0};
+          ClientToScreen(hWnd, &org);
+
+          org.x -= GetSystemMetrics(SM_XVIRTUALSCREEN);
+          org.y -= GetSystemMetrics(SM_YVIRTUALSCREEN);
+
+          double const pmin = window->win32.pressMin;
+          double const pri = window->win32.pressRangeInv;
+
+          double x = (double)(pkt.pkX - window->win32.hWintabContextDefault.lcInOrgX) / window->win32.hWintabContextDefault.lcInExtX;
+          double y = 1 - (double)(pkt.pkY - window->win32.hWintabContextDefault.lcInOrgY) / window->win32.hWintabContextDefault.lcInExtY;
+
+          x = x * window->win32.hWintabContextDefault.lcSysExtX + window->win32.hWintabContextDefault.lcSysOrgX;
+          y = y * window->win32.hWintabContextDefault.lcSysExtY + window->win32.hWintabContextDefault.lcSysOrgY;
+
+          _glfwInputPen(window, pkt.pkCursor,
+                        x - org.x,
+                        y - org.y,
+                        pri * (pkt.pkNormalPressure - pmin),
+                        0.1 * pkt.pkOrientation.orAltitude,
+                        0.1 * pkt.pkOrientation.orAzimuth,
+                        0.1 * pkt.pkOrientation.orTwist);
+        }
+      }
+      return 0;
+    }
+    }
 #endif
 
-    _GLFWwindow* window = GetPropW(hWnd, L"GLFW");
     if (!window)
     {
         // This is the message handling for the hidden helper window
 
         switch (uMsg)
         {
-#if defined(GLFW_SUPPORT_WINTAB)
-            case WM_CREATE:
-            {
-                hTab = TabletInit(hWnd);
-                if (!hTab) {
-                    _glfwInputError(GLFW_PLATFORM_ERROR,
-                                    "Win32: Could not initialize the tablet");
-                }
-
-                AXIS pressAxis;
-                gWTInfo(WTI_DEVICES, DVC_NPRESSURE, &pressAxis);
-                pressMin = pressAxis.axMin;
-                pressRangeInv = 1.0 / (pressAxis.axMax - pressAxis.axMin);
-                break;
-            }
-
-            case WM_ACTIVATE:
-            {
-                if (hTab && GET_WM_ACTIVATE_STATE(wParam, lParam)) {
-                    gpWTOverlap(hTab, TRUE);
-                }
-                break;
-            }
-
-            case WT_PACKET: // A packet is waiting from WINTAB
-            {
-              PACKET pkt;
-              if (gpWTPacket((HCTX)lParam, wParam, &pkt)) {
-                _glfwInputPen(window, pkt.pkCursor, pkt.pkX, pkt.pkY,
-                              pressRangeInv * (pkt.pkNormalPressure - pressMin),
-                              pkt.pkOrientation.orAltitude,
-                              pkt.pkOrientation.orAzimuth,
-                              pkt.pkOrientation.orTwist);
-              }
-              break;
-            }
-
-            case WM_DESTROY:
-            {
-                if (hTab) {
-                  gpWTClose(hTab);
-                }
-                
-                break;
-            }
-#endif
             case WM_DEVICECHANGE:
             {
                 if (wParam == DBT_DEVNODES_CHANGED)
@@ -936,6 +923,29 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
             DragFinish(drop);
             return 0;
         }
+
+#if defined(GLFW_SUPPORT_WINTAB)
+        case WM_ACTIVATE:
+        {
+          if (window->win32.hWintabContext) {
+            BOOL const isActive = GET_WM_ACTIVATE_STATE(wParam, lParam);
+            gpWTEnable(window->win32.hWintabContext, isActive);
+            if (isActive) {
+              gpWTOverlap(window->win32.hWintabContext, TRUE);
+            }
+          }
+          break;
+        }
+
+        case WM_DESTROY:
+        {
+          if (window->win32.hWintabContext) {
+            gpWTClose(window->win32.hWintabContext);
+          }
+          break;
+        }
+#endif
+
     }
 
     return DefWindowProcW(hWnd, uMsg, wParam, lParam);
@@ -1016,6 +1026,20 @@ static int createNativeWindow(_GLFWwindow* window,
     }
 
     DragAcceptFiles(window->win32.handle, TRUE);
+
+#if defined(GLFW_SUPPORT_WINTAB)
+    window->win32.hWintabContext = TabletInit(window->win32.handle, &window->win32.hWintabContextDefault);
+    if (!window->win32.hWintabContext) {
+      _glfwInputError(GLFW_PLATFORM_ERROR,
+                      "Win32: Could not initialize the tablet");
+      return GLFW_FALSE;
+    }
+
+    AXIS pressAxis;
+    gpWTInfoA(WTI_DEVICES, DVC_NPRESSURE, &pressAxis);
+    window->win32.pressMin = pressAxis.axMin;
+    window->win32.pressRangeInv = 1.0 / (pressAxis.axMax - pressAxis.axMin);
+#endif
 
     return GLFW_TRUE;
 }

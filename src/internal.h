@@ -873,7 +873,7 @@ void _glfwInputWindowMonitorChange(_GLFWwindow* window, _GLFWmonitor* monitor);
  */
 void _glfwInputKey(_GLFWwindow* window, int key, int scancode, int action, int mods);
 
-void _glfwInputPen(_GLFWwindow* window, uint32_t key, int32_t x, int32_t y,
+void _glfwInputPen(_GLFWwindow* window, uint32_t key, double x, double y,
                    double pressure, double altitude, double azimuth, double twist);
 
 /*! @brief Notifies shared code of a Unicode character input event.

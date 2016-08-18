@@ -66,7 +66,7 @@ void _glfwInputKey(_GLFWwindow* window, int key, int scancode, int action, int m
 
 #if defined(GLFW_SUPPORT_WINTAB)
 void _glfwInputPen(_GLFWwindow* window,
-                   uint32_t pen, int32_t x, int32_t y,
+                   uint32_t pen, double x, double y,
                    double pressure, double altitude,
                    double azimuth, double twist)
 {
